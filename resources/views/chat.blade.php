@@ -45,8 +45,8 @@
                             </div>
                         </div>
                     </div>
-                    <form id="messageForm" class="flex flex-row items-center h-16 rounded-xl bg-white w-full px-4">
-
+                    <form id="messageForm" class="flex flex-row items-center h-16 rounded-xl bg-white w-full px-4 relative">
+                        <div id="typingArea" class="absolute -top-6 text-sm font-medium"></div>
                         <div class="flex-grow">
                             <div class="relative w-full">
                                 <input id="messageInput" type="text" class="flex w-full border rounded-xl focus:outline-none focus:border-indigo-300 pl-4 h-10" placeholder="Mesajınızı yazın" autocomplete="off" />
@@ -70,6 +70,7 @@
 
     <script>
         const userId = parseInt(document.querySelector('body').getAttribute('data-user-id'));
+        const typingArea = document.getElementById('typingArea');
         let userList = [];
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -82,8 +83,10 @@
             */
 
             Echo.join('chat') // kanal adı
+                .listen('SendMessage', (e) => { // dinlenecek event adı
+                    getMessage(e);
+                })
                 .here((users) => {
-                    console.log('users', users);
                     userList = users;
                     refreshUsers();
                 })
@@ -97,14 +100,30 @@
                     userList = userList.filter(u => u.id !== user.id);
                     refreshUsers();
                 })
-                .listen('SendMessage', (e) => { // dinlenecek event adı
-                    getMessage(e);
-                })
                 .error((error) => {
                     console.error(error);
                 });
-        });
 
+
+            Echo.private('chat')
+                .listenForWhisper('typing', (response) => {
+                    const typingText = response.userName + ' yazıyor...';
+
+                    typingArea.innerHTML = typingText;
+
+                    setTimeout(() => {
+                        typingArea.innerHTML = '';
+                    }, 1000);
+                });
+
+            document.getElementById('messageInput').addEventListener('keyup', function() {
+                const userName = document.getElementById('userName').textContent;
+                Echo.private('chat')
+                    .whisper('typing', {
+                        userName: userName,
+                    });
+            });
+        });
 
         // Mesaj gönderme
         document.getElementById('messageForm').addEventListener('submit', function(event) {
